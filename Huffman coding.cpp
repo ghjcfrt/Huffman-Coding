@@ -152,7 +152,7 @@ void saveToFile(const string &filename, const string &data)
 
 int main()
 {
-    string filename = "/d:/code/1.5/Huffman coding.cpp"; // 输入文件路径
+    string filename = "D:\\code\\1.5\\test huffman.txt"; // 输入文件路径
     string content;
     readFile(filename, content); // 读取文件内容
 
@@ -165,13 +165,32 @@ int main()
 
     string compressedData = compressData(content, codes); // 压缩数据
 
-    string compressedFilename = "/d:/code/1.5/compressed.txt"; // 压缩后文件路径
-    saveToFile(compressedFilename, compressedData);            // 保存压缩数据到文件
+    // 压缩文件路径
+    string compressedFilename = "D:\\code\\1.5\\compressed.txt";
+    // 如果文件已经存在，则添加序号
+    int index = 1;
+    while (ifstream(compressedFilename).good())
+    {
+        compressedFilename = "D:\\code\\1.5\\compressed" + to_string(index) + ".txt";
+        index++;
+    }
+
+    saveToFile(compressedFilename, compressedData); // 保存压缩数据到文件
 
     string decompressedData = decompressData(compressedData, root); // 解压缩数据
 
-    string decompressedFilename = "/d:/code/1.5/decompressed.txt"; // 解压后文件路径
-    saveToFile(decompressedFilename, decompressedData);            // 保存解压数据到文件
+    // 解压缩文件路径
+    string decompressedFilename = "D:\\code\\1.5\\decompressed.txt";
+    // 如果文件已经存在，则添加序号
+    index = 1;
+    while (ifstream(decompressedFilename).good())
+    {
+        decompressedFilename = "D:\\code\\1.5\\decompressed" + to_string(index) + ".txt";
+        index++;
+    }
 
+    saveToFile(decompressedFilename, decompressedData); // 保存解压数据到文件
+
+    system("pause");
     return 0;
 }
