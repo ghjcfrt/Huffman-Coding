@@ -150,6 +150,73 @@ void saveToFile(const string &filename, const string &data)
     }
 }
 
+// 从json构建哈夫曼树
+Node *buildHuffmanTreeFromJson(const string &json)
+{
+    Node *root = nullptr;
+    Node *current = nullptr;
+    for (char c : json)
+    {
+        if (c == '0')
+        {
+            if (current->left == nullptr)
+            {
+                current->left = new Node('$', 0);
+            }
+            current = current->left;
+        }
+        else
+        {
+            if (current->right == nullptr)
+            {
+                current->right = new Node('$', 0);
+            }
+            current = current->right;
+        }
+
+        if (current->left == nullptr && current->right == nullptr)
+        {
+            if (root == nullptr)
+            {
+                root = current;
+            }
+            current = root;
+        }
+    }
+    return root;
+}
+// 保存哈夫曼树到json
+string saveHuffmanTreeToJson(Node *root)
+{
+    string json;
+    queue<Node *> q;
+    q.push(root);
+    while (!q.empty())
+    {
+        Node *current = q.front();
+        q.pop();
+        if (current->left != nullptr)
+        {
+            q.push(current->left);
+            json += "0";
+        }
+        else
+        {
+            json += "1";
+        }
+        if (current->right != nullptr)
+        {
+            q.push(current->right);
+            json += "0";
+        }
+        else
+        {
+            json += "1";
+        }
+    }
+    return json;
+}
+
 /*int main()
 {
     string filename = "D:\\code\\1.5\\test huffman.txt"; // 输入文件路径
