@@ -149,6 +149,72 @@ void saveToFile(const string &filename, const string &data)
         cout << "Unable to open file: " << filename << endl;
     }
 }
+// 从json构建哈夫曼树
+Node *buildHuffmanTreeFromJson(const string &json)
+{
+    Node *root = nullptr;
+    Node *current = nullptr;
+    for (char c : json)
+    {
+        if (c == '0')
+        {
+            if (current->left == nullptr)
+            {
+                current->left = new Node('$', 0);
+            }
+            current = current->left;
+        }
+        else
+        {
+            if (current->right == nullptr)
+            {
+                current->right = new Node('$', 0);
+            }
+            current = current->right;
+        }
+
+        if (current->left == nullptr && current->right == nullptr)
+        {
+            if (root == nullptr)
+            {
+                root = current;
+            }
+            current = root;
+        }
+    }
+    return root;
+}
+// 保存哈夫曼树到json
+string saveHuffmanTreeToJson(Node *root)
+{
+    string json;
+    queue<Node *> q;
+    q.push(root);
+    while (!q.empty())
+    {
+        Node *current = q.front();
+        q.pop();
+        if (current->left != nullptr)
+        {
+            q.push(current->left);
+            json += "0";
+        }
+        else
+        {
+            json += "1";
+        }
+        if (current->right != nullptr)
+        {
+            q.push(current->right);
+            json += "0";
+        }
+        else
+        {
+            json += "1";
+        }
+    }
+    return json;
+}
 
 int main()
 {
@@ -189,7 +255,21 @@ int main()
         index++;
     }
 
+    // 获取父路径
+    string parentPath = filename.substr(0, filename.find_last_of("\\/"));
+
+    // 根据父路径生成储存路径
+    string storagePath = parentPath + "\\storage.txt";
+
+    // 保存文件到储存路径
+    saveToFile(storagePath, content);
+
     saveToFile(decompressedFilename, decompressedData); // 保存解压数据到文件
+
+    string huffmanTreeJson = saveHuffmanTreeToJson(root);            // 保存哈夫曼树到json
+    string huffmanTreeFilename = "D:\\code\\1.5\\huffman_tree.json"; // 哈夫曼树文件路径
+
+    saveToFile(huffmanTreeFilename, huffmanTreeJson); // 保存哈夫曼树到文件
 
     system("pause");
     return 0;
