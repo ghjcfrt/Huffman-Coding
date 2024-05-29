@@ -188,30 +188,30 @@ Node *buildHuffmanTreeFromJson(const string &json)
 // 保存哈夫曼树到json
 string saveHuffmanTreeToJson(Node *root)
 {
-    string json;
-    queue<Node *> q;
-    q.push(root);
-    while (!q.empty())
+    string json;       // 保存哈夫曼树的json字符串
+    queue<Node *> q;   // 用于层序遍历哈夫曼树
+    q.push(root);      // 根节点入队
+    while (!q.empty()) // 遍历队列
     {
-        Node *current = q.front();
-        q.pop();
-        if (current->left != nullptr)
+        Node *current = q.front();    // 取出队首节点
+        q.pop();                      // 弹出队首节点
+        if (current->left != nullptr) // 如果左子节点不为空
         {
-            q.push(current->left);
-            json += "0";
+            q.push(current->left); // 左子节点入队
+            json += "0";           // 添加0到json字符串
         }
         else
         {
-            json += "1";
+            json += "1"; // 添加1到json字符串
         }
-        if (current->right != nullptr)
+        if (current->right != nullptr) // 如果右子节点不为空
         {
-            q.push(current->right);
-            json += "0";
+            q.push(current->right); // 右子节点入队
+            json += "0";            // 添加0到json字符串
         }
         else
         {
-            json += "1";
+            json += "1"; // 添加1到json字符串
         }
     }
     return json;
