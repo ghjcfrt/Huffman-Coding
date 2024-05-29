@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <commdlg.h>
+#include <commctrl.h>
 #include <iostream>
 #include <string>
 #include "Huffman coding.h"
@@ -14,6 +15,7 @@ using namespace std;
 #define DecompressData 1008
 
 int Operation_Record = 0;
+int key_exists = 0;
 string fileName;
 string fileExtension;
 string content;
@@ -59,7 +61,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         hInstance, // 实例句柄
         NULL       // 附加应用程序数据
     );
-    // 创建编辑框来显示文件路径
+    // 在创建窗口后设置背景色
+    // HBRUSH hBrush = CreateSolidBrush(RGB(163, 188, 216));
+    // SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hBrush);
+
+    //  创建编辑框来显示文件路径
     hEdit = CreateWindowEx(
         WS_EX_CLIENTEDGE,                                   // 扩展样式
         "EDIT",                                             // 类名
@@ -71,7 +77,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         hInstance,                                          // 实例句柄
         NULL                                                // 附加参数
     );
-    // 创建编辑框来显示哈夫曼树文件路径
+    // File图标
+    // 加载 SHELL32.dll 中的第一个图标
+    HICON hFileSystemIcon = ExtractIcon(hInstance, TEXT("%SystemRoot%\\System32\\SHELL32.dll"), 0);
+    // 获取系统图标的宽度
+    int FileIconWidth = GetSystemMetrics(SM_CXICON);
+    // 计算等比例缩放后的宽度
+    int FileIconHeight = 20;
+    int FileNewWidth = MulDiv(FileIconWidth, FileIconHeight, GetSystemMetrics(SM_CYICON));
+    HICON hFileScaledIcon = (HICON)CopyImage(hFileSystemIcon, IMAGE_ICON, FileNewWidth, FileIconHeight, LR_COPYFROMRESOURCE);
+    HWND hFileIconWnd = CreateWindowEx(
+        0,                                                  // 扩展样式
+        WC_STATIC,                                          // 类名
+        NULL,                                               // 窗口标题
+        WS_CHILD | WS_VISIBLE | SS_ICON | SS_REALSIZEIMAGE, // 窗口样式
+        80, 50,                                             // 位置
+        FileNewWidth,                                       // 宽度（等比缩放后的宽度）
+        FileIconHeight,                                     // 高度
+        hwnd,                                               // 父窗口句柄
+        NULL,                                               // 菜单句柄
+        hInstance,                                          // 实例句柄
+        NULL                                                // 附加数据
+    );
+    SendMessage(hFileIconWnd, STM_SETICON, (WPARAM)hFileScaledIcon, 0); // 设置图标
+    // 释放原始图标资源
+    DestroyIcon(hFileSystemIcon);
+    // 创建编辑框来显示Key文件路径
     hEdit2 = CreateWindowEx(
         WS_EX_CLIENTEDGE,                                   // 扩展样式
         "EDIT",                                             // 类名
@@ -83,6 +114,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         hInstance,                                          // 实例句柄
         NULL                                                // 附加参数
     );
+    // Key图标
+    // 加载 mstsc.exe 中的第一个图标
+    HICON hKeySystemIcon = ExtractIcon(hInstance, TEXT("%SystemRoot%\\System32\\mstsc.exe"), 13);
+    // 获取系统图标的宽度
+    int KeyIconWidth = GetSystemMetrics(SM_CXICON);
+    // 计算等比例缩放后的宽度
+    int KeyIconHeight = 20;
+    int KeyNewWidth = MulDiv(KeyIconHeight, KeyIconHeight, GetSystemMetrics(SM_CYICON));
+    HICON hKeyScaledIcon = (HICON)CopyImage(hKeySystemIcon, IMAGE_ICON, KeyNewWidth, KeyIconHeight, LR_COPYFROMRESOURCE); // 等比例缩放图标
+    HWND hKeyIconWnd = CreateWindowEx(
+        0,                                                  // 扩展样式
+        WC_STATIC,                                          // 类名
+        NULL,                                               // 窗口标题
+        WS_CHILD | WS_VISIBLE | SS_ICON | SS_REALSIZEIMAGE, // 窗口样式
+        80, 80,                                             // 位置
+        KeyNewWidth,                                        // 宽度（等比缩放后的宽度）
+        KeyIconHeight,                                      // 高度
+        hwnd,                                               // 父窗口句柄
+        NULL,                                               // 菜单句柄
+        hInstance,                                          // 实例句柄
+        NULL                                                // 附加数据
+    );
+    SendMessage(hKeyIconWnd, STM_SETICON, (WPARAM)hKeyScaledIcon, 0); // 设置图标
+    // 释放原始图标资源
+    DestroyIcon(hKeySystemIcon);
     // 文件读取按钮
     HWND btnReadFile = CreateWindow(
         "BUTTON",                                              // 类名
@@ -156,9 +212,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         // 处理按钮点击事件
         if (LOWORD(wParam) == ReadFile) // 当点击文件读取按钮时
         {
+            key_exists = 0;
             // 获取文件路径
-            char filePath[MAX_PATH]; // 文件路径
-            string jsonFilePath="";     // json文件路径
+            char filePath[MAX_PATH];  // 文件路径
+            string jsonFilePath = ""; // json文件路径
             GetWindowText(hEdit, filePath, MAX_PATH);
             // 获取父路径
             parentPath = filesystem::path(filePath).parent_path();
@@ -167,11 +224,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (filesystem::exists(jsonFilePath))
             {
                 // 找到同名json文件
+                key_exists = 1;
                 SetWindowText(hEdit2, jsonFilePath.c_str());
             }
             else
             {
-                jsonFilePath ="";
+                jsonFilePath = "";
             }
             // 读取文件
             ifstream file(filePath);
@@ -179,29 +237,34 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (file.is_open())
             {
                 Operation_Record = 0;
-                readFile(filePath, content);                                     // 读取文件内容
+                readFile(filePath, content); // 读取文件内容
+                // 判断文件内容是否为空
+                if (file.peek() == ifstream::traits_type::eof())
+                {
+                    MessageBox(hwnd, "文件内容为空。", "警告", MB_OK | MB_ICONERROR);
+                    break;
+                }
                 fileName = filesystem::path(filePath).stem().string();           // 保存文件名
                 fileExtension = filesystem::path(filePath).extension().string(); // 保存文件扩展名
                 MessageBox(hwnd, "文件已读取。", "提示", MB_OK | MB_ICONINFORMATION);
-                /*if (keyfile.is_open())
+                // 如果找到同名json文件，则读取哈夫曼树
+                if (key_exists == 1)
                 {
+                    ifstream keyfile(jsonFilePath);
+                    if (keyfile.is_open())
+                    {
+                        // 读取json文件内容
+                        string jsonContent;
+                        getline(keyfile, jsonContent);
 
-                    // 读取json文件内容
-                    string jsonContent;
-                    getline(keyfile, jsonContent);
+                        // 从JSON文件构建哈夫曼树
+                        root = buildHuffmanTreeFromJson(jsonContent);
 
-                    // 从JSON文件构建哈夫曼树
-                    root = buildHuffmanTreeFromJson(jsonContent);
-
-                    // 关闭key文件
-                    keyfile.close();
-                    MessageBox(hwnd, "哈夫曼树已从JSON文件读取。", "提示", MB_OK | MB_ICONINFORMATION);
+                        // 关闭key文件
+                        keyfile.close();
+                        MessageBox(hwnd, "哈夫曼树已从JSON文件读取。", "提示", MB_OK | MB_ICONINFORMATION);
+                    }
                 }
-                else if (jsonFilePath != "")
-                {
-                    // 弹出JSON文件打开失败的错误消息框
-                    MessageBox(hwnd, "JSON文件无法打开。", "错误", MB_OK | MB_ICONERROR);
-                }*/
             }
             else
             {
