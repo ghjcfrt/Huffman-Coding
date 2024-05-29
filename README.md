@@ -21,5 +21,5 @@
 算法：哈夫曼编码、解码
 
 
-#使用方法
-下载All-Code里的全部代码，运行'''WindowsProject copy.cpp'''
+# 使用方法
+下载All-Code里的全部代码，运行 # WindowsProject copy.cpp
