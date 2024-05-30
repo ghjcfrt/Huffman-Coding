@@ -1,6 +1,4 @@
 #include <windows.h>
-#include <commdlg.h>
-#include <commctrl.h>
 #include <iostream>
 #include <string>
 #include "Huffman coding.h"
@@ -17,18 +15,18 @@ using namespace std;
 
 int Operation_Record = 0;
 int key_exists = 0;
-string fileName;
-string fileExtension; // 文件扩展名
-string content;
-string key;
-filesystem::path parentPath;
-filesystem::path outputPath;
-string decompressedData;
-string compressedData;
-Node *root = nullptr; // 哈夫曼树的根节点
+string fileName;                     // 文件名
+string fileExtension;                // 文件扩展名
+string content;                      // 文件内容
+filesystem::path parentPath;         // 父路径
+filesystem::path outputPath;         // 输出路径
+string decompressedData;             // 解压数据
+string compressedData;               // 压缩数据
+Node *root = nullptr;                // 哈夫曼树的根节点
+unordered_map<string, string> codes; // 生成哈夫曼编码
 
-HWND hEdit; // 全局变量声明
-HWND hEdit2;
+HWND hEdit;  //  文件路径编辑框
+HWND hEdit2; //  json文件路径编辑框
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~封装代码~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 // 处理文件读取按钮点击事件
@@ -70,22 +68,20 @@ void OnReadFile(HWND hwnd)
         fileName = filesystem::path(filePath).stem().string();           // 保存文件名
         fileExtension = filesystem::path(filePath).extension().string(); // 保存文件扩展名
         MessageBox(hwnd, "文件已读取。", "提示", MB_OK | MB_ICONINFORMATION);
-        // 如果找到同名json文件，则读取哈夫曼树
+        // 如果找到同名json文件，则读取哈夫曼编码
         if (key_exists == 1)
         {
             ifstream keyfile(jsonFilePath);
             if (keyfile.is_open())
             {
-                // 读取json文件内容
-                string jsonContent;
-                getline(keyfile, jsonContent);
-
-                // 从JSON文件构建哈夫曼树
-                root = buildHuffmanTreeFromJson(jsonContent);
-
-                // 关闭key文件
+                codes = loadHuffmanCodesFromJson(keyfile); // 从json文件读取哈夫曼编码
                 keyfile.close();
-                MessageBox(hwnd, "哈夫曼树已从JSON文件读取。", "提示", MB_OK | MB_ICONINFORMATION);
+                MessageBox(hwnd, "哈夫曼编码已从JSON文件读取。", "提示", MB_OK | MB_ICONINFORMATION);
+            }
+            else
+            {
+                // 弹出文件打开失败的错误消息框
+                MessageBox(hwnd, "无法打开json。", "错误", MB_OK | MB_ICONERROR);
             }
         }
     }
@@ -118,8 +114,8 @@ void OnSaveFile(HWND hwnd)
         {
             // 压缩文件路径
             string compressedFilename = (outputPath / (fileName + fileExtension)).string();
-            // 哈夫曼树文件路径
-            string huffmanTreeFilename = (outputPath / (fileName + ".json")).string();
+            // 哈夫曼编码文件路径
+            string huffmanCodesFilename = (outputPath / (fileName + ".json")).string();
             // 如果文件已经存在，则添加序号
             int file_index = 1;
             while (ifstream(compressedFilename).good()) // 判断压缩文件是否存在
@@ -128,17 +124,15 @@ void OnSaveFile(HWND hwnd)
                 file_index++;
             }
             int key_index = 1;
-            while (ifstream(huffmanTreeFilename).good()) // 判断key文件是否存在
+            while (ifstream(huffmanCodesFilename).good()) // 判断key文件是否存在
             {
-                huffmanTreeFilename = (outputPath / (fileName + to_string(key_index) + ".json")).string();
+                huffmanCodesFilename = (outputPath / (fileName + to_string(key_index) + ".json")).string();
                 key_index++;
             }
             saveToFile(compressedFilename, compressedData); // 保存压缩数据到文件
             MessageBox(hwnd, "数据压缩保存成功！", "提示", MB_OK | MB_ICONINFORMATION);
 
-            string huffmanTreeJson = saveHuffmanTreeToJson(root); // 保存哈夫曼树到json
-
-            saveToFile(huffmanTreeFilename, huffmanTreeJson); // 保存哈夫曼树到文件
+            saveHuffmanCodesToJson(codes, huffmanCodesFilename); // 保存哈夫曼编码到文件
         }
         else if (Operation_Record == 1008) // 解压
         {
@@ -169,8 +163,8 @@ void OnbtnCompressData(HWND hwnd)
 {
     unordered_map<char, int> frequencies = calculateFrequencies(content); // 计算字符频率
     MessageBox(hwnd, "频率分析成功！", "提示", MB_OK | MB_ICONINFORMATION);
-    root = buildHuffmanTree(frequencies);          // 构建哈夫曼树
-    unordered_map<char, string> codes;             // 生成哈夫曼编码
+    root = buildHuffmanTree(frequencies); // 构建哈夫曼树
+
     generateCodes(root, "", codes);                // 生成哈夫曼编码
     compressedData = compressData(content, codes); // 压缩数据
     Operation_Record = 1007;
@@ -179,10 +173,18 @@ void OnbtnCompressData(HWND hwnd)
 // 处理解压数据按钮点击事件
 void OnbtnDecompressData(HWND hwnd)
 {
-    decompressedData = decompressData(content, root); // 解压缩数据
+    decompressedData = decompressData(compressedData, codes); // 解压缩数据
     Operation_Record = 1008;
     MessageBox(hwnd, "数据解压成功！", "提示", MB_OK | MB_ICONINFORMATION);
 }
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~封装代码~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*
+                                         *
+                                         *
+                                        隔离
+                                         *
+                                         *
+*/
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~代码主体~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 // 函数原型
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -264,7 +266,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case DecompressData: // 点击解压数据按钮
             if (key_exists == 0)
             {
-                MessageBox(hwnd, "未找到哈夫曼树文件！", "错误", MB_OK | MB_ICONERROR);
+                MessageBox(hwnd, "未找到哈夫曼编码文件！", "错误", MB_OK | MB_ICONERROR);
                 break;
             }
             else
