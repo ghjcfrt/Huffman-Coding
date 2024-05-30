@@ -1,9 +1,11 @@
+// include "Huffman coding.h"
 #include <iostream>
 #include <fstream>
 #include <queue>
 #include <string>
 #include <unordered_map>
 #include <algorithm>
+#include <memory>
 
 using namespace std;
 
@@ -55,7 +57,23 @@ void readFile(const string &filename, string &content)
     }
     else
     {
-        cout << "Unable to open file: " << filename << endl;
+        // 文件写入失败时弹出错误消息框
+        MessageBox(NULL, ("无法打开文件: " + filename).c_str(), "错误", MB_OK | MB_ICONERROR);
+    }
+}
+// 打开 JSON 文件
+bool openJsonFile(const string &filename, ifstream &file)
+{
+    file.open(filename);
+    if (file.is_open())
+    {
+        return true; // 文件成功打开
+    }
+    else
+    {
+        // 弹出文件打开失败的错误消息框
+        MessageBox(NULL, ("无法打开文件: " + filename).c_str(), "错误", MB_OK | MB_ICONERROR);
+        return false; // 文件打开失败
     }
 }
 
@@ -165,9 +183,11 @@ void saveToFile(const string &filename, const string &data)
     }
     else
     {
-        cout << "Unable to open file: " << filename << endl;
+        // 文件写入失败时弹出错误消息框
+        MessageBox(NULL, ("无法打开文件: " + filename).c_str(), "错误", MB_OK | MB_ICONERROR);
     }
 }
+
 // 保存哈夫曼编码到json
 void saveHuffmanCodesToJson(const unordered_map<string, string> &codes, const string &filename)
 {
@@ -196,7 +216,8 @@ void saveHuffmanCodesToJson(const unordered_map<string, string> &codes, const st
     }
     else
     {
-        cout << "Unable to open file: " << filename << endl;
+        // 文件写入失败时弹出错误消息框
+        MessageBox(NULL, ("无法打开文件: " + filename).c_str(), "错误", MB_OK | MB_ICONERROR);
     }
 }
 
@@ -232,14 +253,6 @@ unordered_map<string, string> loadHuffmanCodesFromJson(ifstream &file)
 
             // 去除值中的逗号
             value.erase(remove(value.begin(), value.end(), ','), value.end());
-
-            /*// 替换值中的转义字符
-            size_t found = key.find("\\\\");
-            while (found != string::npos)
-            {
-                key.replace(found, 2, "\\");
-                found = key.find("\\\\", found + 1);
-            }*/
 
             // 添加键值对到哈希表
             if (!key.empty())
