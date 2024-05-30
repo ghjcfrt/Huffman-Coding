@@ -22,4 +22,4 @@
 
 
 ## 使用方法
-下载All-Code里的全部代码，运行 ___WindowsProject copy.cpp___
+下载___Huffman_Encoding.Decoding.exe___后，运行 ___Huffman_Encoding.Decoding.exe___
