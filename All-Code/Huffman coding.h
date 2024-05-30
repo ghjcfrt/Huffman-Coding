@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <algorithm>
-#include <memory>
+#include <sstream>
 
 using namespace std;
 
@@ -54,6 +54,7 @@ void readFile(const string &filename, string &content)
             }
         }
         file.close();
+        MessageBox(NULL, "文件已读取。", "信息", MB_OK | MB_ICONINFORMATION);
     }
     else
     {
