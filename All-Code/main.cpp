@@ -167,7 +167,7 @@ void OnSaveFile(HWND hwnd)
 // 处理压缩数据按钮点击事件
 void OnbtnCompressData(HWND hwnd)
 {
-    if (Operation_Record == 1003) // 未读取文件
+    if (Operation_Record != 1003) // 未读取文件
     {
         MessageBox(hwnd, "请先读取文件！", "错误", MB_OK | MB_ICONERROR);
         return;
