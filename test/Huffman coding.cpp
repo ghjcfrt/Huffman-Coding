@@ -1,9 +1,14 @@
-//该文件仅用于测试代码
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
 #include <queue>
 #include <bitset>
+#include <sstream>
+#include <iomanip>
+#include <filesystem>
+#include <string>
+#include <unordered_map>
+#include <algorithm>
 
 using namespace std;
 
@@ -36,7 +41,20 @@ void readFile(const string &filename, string &content)
         string line;
         while (getline(file, line))
         {
-            content += line + "\n"; // 读取文件每一行并添加换行符
+            // 替换每个换行符为 \\n
+            size_t pos = 0;
+            while ((pos = line.find("\n", pos)) != string::npos)
+            {
+                line.replace(pos, 1, "\\n");
+                pos += 2; // 移动到下一个字符，跳过已经替换的 \\n
+            }
+            content += line; // 添加到内容中
+
+            // 检查是否为最后一行，如果不是，则添加换行符
+            if (!file.eof())
+            {
+                content += "\n";
+            }
         }
         file.close();
     }
@@ -84,7 +102,7 @@ Node *buildHuffmanTree(const unordered_map<char, int> &frequencies)
 }
 
 // 生成哈夫曼编码
-void generateCodes(Node *root, const string &code, unordered_map<char, string> &codes)
+void generateCodes(Node *root, const string &code, unordered_map<string, string> &codes)
 {
     if (root == nullptr)
     {
@@ -92,8 +110,8 @@ void generateCodes(Node *root, const string &code, unordered_map<char, string> &
     }
 
     if (root->data != '$')
-    {                             // 叶子节点存储实际字符
-        codes[root->data] = code; // 存储字符对应的哈夫曼编码
+    {                                        // 叶子节点存储实际字符
+        codes[string(1, root->data)] = code; // 存储字符对应的哈夫曼编码
     }
 
     generateCodes(root->left, code + "0", codes);  // 递归左子树
@@ -101,39 +119,44 @@ void generateCodes(Node *root, const string &code, unordered_map<char, string> &
 }
 
 // 压缩数据
-string compressData(const string &content, const unordered_map<char, string> &codes)
+string compressData(const string &content, const unordered_map<string, string> &codes)
 {
     string compressedData;
     for (char c : content)
     {
-        compressedData += codes.at(c); // 把每个字符替换为哈夫曼编码
+        string key(1, c);                // 使用字符本身作为键
+        compressedData += codes.at(key); // 使用哈夫曼编码
     }
     return compressedData;
 }
 
 // 解压缩数据
-string decompressData(const string &compressedData, Node *root)
+string decompressData(const string &encryptedText, const unordered_map<string, string> &huffmanCodes)
 {
-    string decompressedData;
-    Node *current = root;
-    for (char c : compressedData)
+    string decryptedText; // 用于存储解密后的文本
+    string buffer;        // 用于存储临时编码
+    for (char c : encryptedText)
     {
-        if (c == '0')
+        buffer += c;
+        for (const auto &code : huffmanCodes)
         {
-            current = current->left; // 遇到'0'则移动到左子节点
-        }
-        else
-        {
-            current = current->right; // 遇到'1'则移动到右子节点
-        }
-
-        if (current->left == nullptr && current->right == nullptr)
-        {
-            decompressedData += current->data; // 到达叶子节点，记录字符
-            current = root;                    // 回到根节点继续处理下一个编码
+            if (buffer == code.second)
+            {
+                if (code.first == "\\n")
+                {
+                    decryptedText += '\n'; // 将解码后的 "\\n" 转换为换行符
+                }
+                else
+                {
+                    decryptedText += code.first;
+                }
+                buffer.clear();
+                break;
+            }
         }
     }
-    return decompressedData;
+
+    return decryptedText;
 }
 
 // 保存数据到文件
@@ -150,128 +173,171 @@ void saveToFile(const string &filename, const string &data)
         cout << "Unable to open file: " << filename << endl;
     }
 }
-// 从json构建哈夫曼树
-Node *buildHuffmanTreeFromJson(const string &json)
+// 保存哈夫曼编码到json
+void saveHuffmanCodesToJson(const unordered_map<string, string> &codes, const string &filename)
 {
-    Node *root = nullptr;
-    Node *current = nullptr;
-    for (char c : json)
+    ofstream file(filename);
+    if (file.is_open())
     {
-        if (c == '0')
+        stringstream ss;
+        ss << "{" << endl;
+        for (const auto &pair : codes)
         {
-            if (current->left == nullptr)
+            if (pair.first == "\\n")
             {
-                current->left = new Node('$', 0);
+                ss << "\"\\n\": \"" << pair.second << "\", " << endl; // 如果是换行符，则使用\n表示
             }
-            current = current->left;
-        }
-        else
-        {
-            if (current->right == nullptr)
+            else
             {
-                current->right = new Node('$', 0);
+                ss << "\"" << pair.first << "\": \"" << pair.second << "\", " << endl;
             }
-            current = current->right;
         }
-
-        if (current->left == nullptr && current->right == nullptr)
-        {
-            if (root == nullptr)
-            {
-                root = current;
-            }
-            current = root;
-        }
+        string str = ss.str();
+        str = str.substr(0, str.length() - 3); // 删除最后一个逗号和空格
+        file << str;
+        file << endl
+             << "}";
+        file.close();
     }
-    return root;
+    else
+    {
+        cout << "Unable to open file: " << filename << endl;
+    }
 }
-// 保存哈夫曼树到json
-string saveHuffmanTreeToJson(Node *root)
+
+// 加载json为哈弗曼编码
+unordered_map<string, string> loadHuffmanCodesFromJson(const string &filename)
 {
-    string json;
-    queue<Node *> q;
-    q.push(root);
-    while (!q.empty())
+    unordered_map<string, string> codes;
+
+    ifstream file(filename);
+    if (file.is_open())
     {
-        Node *current = q.front();
-        q.pop();
-        if (current->left != nullptr)
+        string line;
+        while (getline(file, line))
         {
-            q.push(current->left);
-            json += "0";
+            // 忽略空行和注释行
+            if (line.empty() || line.find("//") == 0)
+            {
+                continue;
+            }
+
+            // 查找键值对中的冒号
+            size_t colonPos = line.find(":");
+            if (colonPos != string::npos)
+            {
+                // 提取键和值
+                string key = line.substr(0, colonPos);
+                string value = line.substr(colonPos + 1);
+
+                // 去除键和值中的空格
+                key.erase(remove_if(key.begin(), key.end(), ::isspace), key.end());
+                value.erase(remove_if(value.begin(), value.end(), ::isspace), value.end());
+
+                // 去除键和值中的双引号
+                key.erase(remove(key.begin(), key.end(), '"'), key.end());
+                value.erase(remove(value.begin(), value.end(), '"'), value.end());
+
+                // 去除值中的逗号
+                value.erase(remove(value.begin(), value.end(), ','), value.end());
+
+                /*// 替换值中的转义字符
+                size_t found = key.find("\\\\");
+                while (found != string::npos)
+                {
+                    key.replace(found, 2, "\\");
+                    found = key.find("\\\\", found + 1);
+                }*/
+
+                // 添加键值对到哈希表
+                if (!key.empty())
+                { // 检查键是否为空
+                    codes[key] = value;
+                }
+            }
         }
-        else
-        {
-            json += "1";
-        }
-        if (current->right != nullptr)
-        {
-            q.push(current->right);
-            json += "0";
-        }
-        else
-        {
-            json += "1";
-        }
+        file.close();
     }
-    return json;
+    else
+    {
+        cout << "Unable to open file: " << filename << endl;
+    }
+
+    return codes;
 }
 
 int main()
 {
+
+    /*string compressedFilename = "D:\\code\\1.5\\compressed.txt";       // 压缩文件路径
+    string huffmanCodesFilename = "D:\\code\\1.5\\huffman_codes.json"; // 哈夫曼编码文件路径
+    string decompressedFilename = "D:\\code\\1.5\\decompressed.txt";   // 解压文件路径
+
+    // 加载哈夫曼编码
+    unordered_map<string, string> codes = loadHuffmanCodesFromJson(huffmanCodesFilename);
+
+    // 读取压缩数据
+    string compressedData;
+    readFile(compressedFilename, compressedData);
+
+    // 输出codes
+    for (const auto &pair : codes)
+    {
+        cout << pair.first << ": " << pair.second << endl;
+    }
+
+    // 解压缩数据
+    string decompressedData = decompressData(compressedData, codes);
+
+    // 保存解压数据到文件
+    saveToFile(decompressedFilename, decompressedData);*/
+
     string filename = "D:\\code\\1.5\\test huffman.txt"; // 输入文件路径
     string content;
-    readFile(filename, content); // 读取文件内容
-
+    readFile(filename, content);                                          // 读取文件内容
     unordered_map<char, int> frequencies = calculateFrequencies(content); // 计算字符频率
-
-    Node *root = buildHuffmanTree(frequencies); // 构建哈夫曼树
-
-    unordered_map<char, string> codes;
-    generateCodes(root, "", codes); // 生成哈夫曼编码
-
+    Node *root = buildHuffmanTree(frequencies);                           // 构建哈夫曼树
+    unordered_map<string, string> codes;
+    generateCodes(root, "", codes);                       // 生成哈夫曼编码
     string compressedData = compressData(content, codes); // 压缩数据
 
     // 压缩文件路径
     string compressedFilename = "D:\\code\\1.5\\compressed.txt";
-    // 如果文件已经存在，则添加序号
-    int index = 1;
-    while (ifstream(compressedFilename).good())
-    {
-        compressedFilename = "D:\\code\\1.5\\compressed" + to_string(index) + ".txt";
-        index++;
-    }
-
-    saveToFile(compressedFilename, compressedData); // 保存压缩数据到文件
-
-    string decompressedData = decompressData(compressedData, root); // 解压缩数据
-
-    // 解压缩文件路径
-    string decompressedFilename = "D:\\code\\1.5\\decompressed.txt";
-    // 如果文件已经存在，则添加序号
-    index = 1;
-    while (ifstream(decompressedFilename).good())
-    {
-        decompressedFilename = "D:\\code\\1.5\\decompressed" + to_string(index) + ".txt";
-        index++;
-    }
-
-    // 获取父路径
-    string parentPath = filename.substr(0, filename.find_last_of("\\/"));
-
-    // 根据父路径生成储存路径
-    string storagePath = parentPath + "\\storage.txt";
-
-    // 保存文件到储存路径
-    saveToFile(storagePath, content);
-
-    saveToFile(decompressedFilename, decompressedData); // 保存解压数据到文件
-
-    string huffmanTreeJson = saveHuffmanTreeToJson(root);            // 保存哈夫曼树到json
-    string huffmanTreeFilename = "D:\\code\\1.5\\huffman_tree.json"; // 哈夫曼树文件路径
-
-    saveToFile(huffmanTreeFilename, huffmanTreeJson); // 保存哈夫曼树到文件
+    saveToFile(compressedFilename, compressedData);                    // 保存压缩数据到文件
+    string huffmanCodesFilename = "D:\\code\\1.5\\huffman_codes.json"; // 哈夫曼编码文件路径
+    saveHuffmanCodesToJson(codes, huffmanCodesFilename);               // 保存哈夫曼编码到文件
 
     system("pause");
     return 0;
 }
+
+/*string filename = "D:\\code\\1.5\\test huffman.txt"; // 输入文件路径
+string content;
+readFile(filename, content); // 读取文件内容
+// string huffmanTreeFilename = "D:\\code\\1.5\\huffman_tree.json"; // 哈夫曼树文件路径
+// saveToFile(huffmanTreeFilename, huffmanTreeJson); // 保存哈夫曼树到文件
+// Node *reconstructedRoot = buildHuffmanTreeFromJson(huffmanTreeJson); // 从json构建哈夫曼树
+unordered_map<char, int> frequencies = calculateFrequencies(content); // 计算字符频率
+//Node *root = buildHuffmanTree(frequencies); // 构建哈夫曼树
+unordered_map<char, string> codes;*/
+// generateCodes(root, "", codes); // 生成哈夫曼编码
+/*string compressedData = compressData(content, codes); // 压缩数据
+// 压缩文件路径
+string compressedFilename = "D:\\code\\1.5\\compressed.txt";
+// 如果文件已经存在，则添加序号
+int index = 1;
+while (ifstream(compressedFilename).good())
+{
+    compressedFilename = "D:\\code\\1.5\\compressed" + to_string(index) + ".txt";
+    index++;
+}*/
+// saveToFile(compressedFilename, compressedData); // 保存压缩数据到文件
+// string huffmanCodesFilename = "D:\\code\\1.5\\huffman_codes.json"; // 哈夫曼编码文件路径
+// saveHuffmanCodesToJson(codes, huffmanCodesFilename);               // 保存哈夫曼编码到文件
+/*// 根据父路径生成储存路径
+string storagePath = parentPath + "\\storage.txt";
+// 保存文件到储存路径
+saveToFile(storagePath, content);
+saveToFile(decompressedFilename, decompressedData); // 保存解压数据到文件*/
+
+// system("pause");
