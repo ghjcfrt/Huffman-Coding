@@ -22,4 +22,4 @@
 
 
 ## 使用方法
-下载___Huffman_Encoding.Decoding.exe___后，运行 ___Huffman_Encoding.Decoding.exe___
+下载 ___Huffman_Encoding.Decoding.exe___ 后，运行 ___Huffman_Encoding.Decoding.exe___
